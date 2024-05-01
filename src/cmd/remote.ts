@@ -2,12 +2,29 @@ import axios from 'axios'
 import dotenv from 'dotenv'
 import ws from 'ws'
 import type { Packet } from '../types/packet'
+import * as nanoid from 'nanoid'
+import fs from 'fs';
+import crypto from 'crypto';
+import inquirer from 'inquirer'
 
 dotenv.config()
 
 // parse url and append /create
 const url = new URL(process.env.BYTESOCKS_INSTANCE || '')
 url.pathname = '/create';
+
+
+// load the server public keys and private keys in pwd public.pem private.pem
+const remPem = fs.readFileSync('public.pem', 'utf-8');
+const pem = fs.readFileSync('private.pem', 'utf-8');
+
+// load it as a key to encrypt things with
+const remKey = crypto.createPublicKey(remPem);
+const key = crypto.createPrivateKey(pem);
+
+let challenge = '';
+
+let conPub : crypto.KeyObject | null = null;
 
 (async () => {
     const response = await axios.get(url.toString())
@@ -29,17 +46,76 @@ url.pathname = '/create';
             const packet : Packet = JSON.parse(data.toString())
             
             if (packet.msgType === 'HELLO') {
+                challenge = nanoid.nanoid(64)
+
                 const response : Packet = {
-                    id: packet.id,
+                    id: nanoid.nanoid(),
                     msgType: 'CHALLENGE',
-                    data: null,
+                    data: challenge,
                     timestamp: Date.now()
                 }
 
                 socket.send(JSON.stringify(response))
             }
+
+            if (packet.msgType === 'CHALLENGE_RES') {
+                const decrypted = crypto.privateDecrypt(key, Buffer.from(packet.data, 'base64')).toString('utf-8')
+                console.log('decrypted ->', decrypted)
+
+                if (decrypted === challenge) {
+                    const response : Packet = {
+                        id: nanoid.nanoid(),
+                        msgType: 'SEND_CONPUB',
+                        data: null,
+                        timestamp: Date.now()
+                    }
+
+                    socket.send(JSON.stringify(response))
+                }
+            }
+
+            if (packet.msgType === 'SEND_CONPUB') {
+                conPub = crypto.createPublicKey(packet.data);
+
+                const response : Packet = {
+                    id: nanoid.nanoid(),
+                    msgType: 'ACK',
+                    data: null,
+                    timestamp: Date.now()
+                }
+
+                socket.send(JSON.stringify(response));
+
+                (async() => {
+                    while (true) {
+                        if (socket.readyState !== ws.OPEN) {
+                            console.error('socket not open')
+                            return;
+                        }
+
+                        const query = await inquirer
+                            .prompt([{ type: 'input', name: 'key', message: 'enter msg' }]);
+
+                        const encrypted = crypto.publicEncrypt(conPub!, Buffer.from(query.key));
+
+                        const response : Packet = {
+                            id: nanoid.nanoid(),
+                            msgType: 'FRAME_REM',
+                            data: encrypted.toString('base64'),
+                            timestamp: Date.now()
+                        }
+
+                        socket.send(JSON.stringify(response))
+                    }
+                })()
+            }
+
+            if (packet.msgType === 'FRAME_CON') {
+                const decrypted = crypto.privateDecrypt(key, Buffer.from(packet.data, 'base64')).toString('utf-8')
+                console.log('decrypted ->', decrypted)
+            }
         } catch (e) {
-            console.error('not json')
+            console.error(e)
         }
     })
 })()
