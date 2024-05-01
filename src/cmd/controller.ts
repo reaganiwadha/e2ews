@@ -3,10 +3,27 @@ import dotenv from 'dotenv'
 import ws from 'ws'
 import type { Packet } from '../types/packet'
 import * as nanoid from 'nanoid'
+import crypto from 'crypto'
 
 dotenv.config()
 
 const url = new URL(process.env.BYTESOCKS_INSTANCE || '');
+
+const key = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 4096,
+    publicKeyEncoding: {
+        type: 'spki',
+        format: 'pem'
+    },
+    privateKeyEncoding: {
+        type: 'pkcs8',
+        format: 'pem'
+    }
+});
+
+
+// load the server public keys
+
 
 (async () => {
     const query = await inquirer
@@ -29,7 +46,7 @@ const url = new URL(process.env.BYTESOCKS_INSTANCE || '');
     })
 
     socket.on('message', (data) => {
-        console.log(data)
+        console.log('recv ->', new String(data))
     })
 })();
 

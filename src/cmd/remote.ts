@@ -1,6 +1,7 @@
 import axios from 'axios'
 import dotenv from 'dotenv'
 import ws from 'ws'
+import type { Packet } from '../types/packet'
 
 dotenv.config()
 
@@ -21,6 +22,24 @@ url.pathname = '/create';
     })
 
     socket.on('message', (data) => {
-        console.log(new String(data))
+        console.log('recv ->', new String(data))
+
+        // try parse json
+        try {
+            const packet : Packet = JSON.parse(data.toString())
+            
+            if (packet.msgType === 'HELLO') {
+                const response : Packet = {
+                    id: packet.id,
+                    msgType: 'CHALLENGE',
+                    data: null,
+                    timestamp: Date.now()
+                }
+
+                socket.send(JSON.stringify(response))
+            }
+        } catch (e) {
+            console.error('not json')
+        }
     })
 })()

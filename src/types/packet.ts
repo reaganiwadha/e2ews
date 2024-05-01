@@ -1,6 +1,7 @@
 export interface Packet {
     id: string;
-    msgType: 'HELLO';
+    msgType: 'HELLO' | 'CHALLENGE';
     data: any;
     timestamp: number;
 }
+
