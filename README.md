@@ -13,7 +13,7 @@ Sandbox project to simulate end-to-end encryption to wrap around [lucko/bytesock
 - Messages will be encrypted, `FRAME_CON` is messages sent by the controller encrypted with remote's public key, and `FRAME_REM` is messages sent by the remote, encrypted with controller's public key. 
 
 ## Limitations
-This implementation PURELY uses the RSA algorithm to encrypt the payload, so issues with lengthy payload may occur. An improved implementation would be using exchanged keys to cipher symmetric encryption like `aes-256-cbc`.
+~~This implementation PURELY uses the RSA algorithm to encrypt the payload, so issues with lengthy payload may occur. An improved implementation would be using exchanged keys to cipher symmetric encryption like `aes-256-cbc`.~~ It's now symmetric encryption (using `aes-256-gcm`) on top of RSA pubkey exchange!
 
 ## Usage
 This project was created using `bun init` in bun v1.1.6. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.

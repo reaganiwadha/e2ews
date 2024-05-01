@@ -5,6 +5,7 @@ import type { Packet } from '../types/packet'
 import * as nanoid from 'nanoid'
 import crypto from 'crypto'
 import fs from 'fs'
+import { decrypt, encrypt, generateRandomKey } from '../common/aes'
 
 dotenv.config()
 
@@ -93,12 +94,16 @@ const remKey = crypto.createPublicKey(remPem);
                         const query = await inquirer
                             .prompt([{ type: 'input', name: 'key', message: 'enter msg' }]);
 
-                        const encrypted = crypto.publicEncrypt(remKey, Buffer.from(query.key));
+                        const randomKey = generateRandomKey();
+                        const encryptedText = encrypt(query.key, randomKey);
+
+                        const encryptedRandomKey = crypto.publicEncrypt(remKey!, Buffer.from(randomKey.toString('base64')));
 
                         const response : Packet = {
                             id: nanoid.nanoid(),
                             msgType: 'FRAME_CON',
-                            data: encrypted.toString('base64'),
+                            data: encryptedText,
+                            dataKey: encryptedRandomKey.toString('base64'),
                             timestamp: Date.now()
                         }
 
@@ -108,8 +113,16 @@ const remKey = crypto.createPublicKey(remPem);
             }
 
             if (packet.msgType === 'FRAME_REM') {
-                const decrypted = crypto.privateDecrypt(key.privateKey, Buffer.from(packet.data, 'base64')).toString('utf-8')
-                console.log('decrypted ->', decrypted)
+                if (packet.dataKey) {
+                    const decryptedKey = crypto.privateDecrypt(key.privateKey, Buffer.from(packet.dataKey, 'base64')).toString('utf-8')
+                    console.log('decrypted key ->', decryptedKey)
+
+                    const decryptedData = decrypt(packet.data, Buffer.from(decryptedKey, 'base64'))
+                    console.log('decrypted data ->', decryptedData)
+                } else {
+                    const decrypted = crypto.privateDecrypt(key.privateKey, Buffer.from(packet.data, 'base64')).toString('utf-8')
+                    console.log('decrypted ->', decrypted)
+                }
             }
         } catch (e) {
             console.error(e)

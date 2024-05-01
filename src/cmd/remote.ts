@@ -6,6 +6,7 @@ import * as nanoid from 'nanoid'
 import fs from 'fs';
 import crypto from 'crypto';
 import inquirer from 'inquirer'
+import { decrypt, encrypt, generateRandomKey } from '../common/aes'
 
 dotenv.config()
 
@@ -96,12 +97,17 @@ let conPub : crypto.KeyObject | null = null;
                         const query = await inquirer
                             .prompt([{ type: 'input', name: 'key', message: 'enter msg' }]);
 
-                        const encrypted = crypto.publicEncrypt(conPub!, Buffer.from(query.key));
+
+                        const randomKey = generateRandomKey();
+                        const encryptedText = encrypt(query.key, randomKey);
+
+                        const encryptedRandomKey = crypto.publicEncrypt(conPub!, Buffer.from(randomKey.toString('base64')));
 
                         const response : Packet = {
                             id: nanoid.nanoid(),
                             msgType: 'FRAME_REM',
-                            data: encrypted.toString('base64'),
+                            data: encryptedText,
+                            dataKey: encryptedRandomKey.toString('base64'),
                             timestamp: Date.now()
                         }
 
@@ -111,8 +117,16 @@ let conPub : crypto.KeyObject | null = null;
             }
 
             if (packet.msgType === 'FRAME_CON') {
-                const decrypted = crypto.privateDecrypt(key, Buffer.from(packet.data, 'base64')).toString('utf-8')
-                console.log('decrypted ->', decrypted)
+                if (packet.dataKey) {
+                    const decryptedKey = crypto.privateDecrypt(key, Buffer.from(packet.dataKey, 'base64')).toString('utf-8')
+                    console.log('decrypted key ->', decryptedKey)
+
+                    const decryptedData = decrypt(packet.data, Buffer.from(decryptedKey, 'base64'))
+                    console.log('decrypted data ->', decryptedData)
+                } else {
+                    const decrypted = crypto.privateDecrypt(key, Buffer.from(packet.data, 'base64')).toString('utf-8')
+                    console.log('decrypted ->', decrypted)
+                }
             }
         } catch (e) {
             console.error(e)
