@@ -1,0 +1,19 @@
+{
+  "name": "e2ews",
+  "module": "remote.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@types/inquirer": "^9.0.7",
+    "axios": "^1.6.8",
+    "dotenv": "^16.4.5",
+    "inquirer": "^9.2.20",
+    "nanoid": "^5.0.7",
+    "ws": "^8.17.0"
+  }
+}
